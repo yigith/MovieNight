@@ -1,0 +1,22 @@
+﻿@model List<Movie>
+@{
+    ViewBag.Title = "Favorites";
+    Layout = "~/Views/Shared/_LayoutHome.cshtml";
+}
+
+<div class="bg-light py-5">
+    <div class="container">
+        <h1>My Favorite Movies</h1>
+        <ul class="list-unstyled">
+            @foreach (var item in Model)
+            {
+                <li class="mb-1 clearfix">
+                    <img src="@item.Poster" alt="@item.Title" height="50" class="float-left mr-2" />
+                    <strong>@item.Title (@item.Year)</strong><br />
+                    <small>@item.Actors</small>
+                </li>
+            }
+        </ul>
+    </div>
+</div>
+

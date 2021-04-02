@@ -1,26 +1,29 @@
-﻿@model List<Movie>
+﻿@using Microsoft.AspNet.Identity
+@model HomeViewModel
 @{
     Layout = "~/Views/Shared/_LayoutHome.cshtml";
     ViewBag.Title = "Home Page";
 }
 
-<section class="jumbotron text-center">
-    <div class="container">
-        <h1>Album example</h1>
-        <p class="lead text-muted">Something short and leading about the collection below—its contents, the creator, etc. Make it short and sweet, but not too short so folks don’t simply skip over it entirely.</p>
-        <p>
-            <a href="#" class="btn btn-primary my-2">Main call to action</a>
-            <a href="#" class="btn btn-secondary my-2">Secondary action</a>
-        </p>
-    </div>
-</section>
+@*<section class="jumbotron text-center">
+        <div class="container">
+            <h1>Movies</h1>
+            <p class="lead text-muted">Something short and leading about the collection below—its contents, the creator, etc. Make it short and sweet, but not too short so folks don’t simply skip over it entirely.</p>
+            <p>
+                <a href="#" class="btn btn-primary my-2">Main call to action</a>
+                <a href="#" class="btn btn-secondary my-2">Secondary action</a>
+            </p>
+        </div>
+    </section>*@
 
 <div class="album py-5 bg-light">
     <div class="container">
 
         <div class="row">
-            @foreach (var movie in Model)
+            @foreach (var movie in Model.Movies)
             {
+                bool isFavorite = Request.IsAuthenticated && movie.Fans.Any(x => x.Id == User.Identity.GetUserId());
+
                 <div class="col-md-4">
                     <div class="card mb-4 shadow-sm">
                         <img src="@movie.Poster" alt="@movie.Title" class="card-img-top" />
@@ -29,9 +32,16 @@
                             <p class="card-text">@movie.Title (@movie.Year)</p>
                             <div class="d-flex justify-content-between align-items-center">
                                 <div class="btn-group">
-                                    <button type="button" class="btn btn-sm btn-outline-secondary">
-                                        <i class="far fa-heart"></i>
-                                    </button>
+                                    <a href="#" class="btn btn-sm btn-outline-secondary" title="@FavTitle()" data-toggle="tooltip" data-selected="@isFavorite" data-fav-id="@movie.Id">
+                                        @if (isFavorite)
+                                        {
+                                            <i class="fas fa-heart text-danger"></i>
+                                        }
+                                        else
+                                        {
+                                            <i class="far fa-heart"></i>
+                                        }
+                                    </a>
                                 </div>
                                 <small class="text-muted">Rating: @movie.ImdbRating /10</small>
                             </div>
@@ -40,5 +50,96 @@
                 </div>
             }
         </div>
+
+
+        @{
+            var pi = Model.PaginationInfo;
+            int[] pageNums = WebUtilities.Pagination(pi.CurrentPage, pi.TotalPages);
+        }
+
+        <nav aria-label="Page navigation example">
+            <ul class="pagination justify-content-center">
+                <li class="page-item @(pi.HasPrevious ? "" : "disabled")">
+                    <a class="page-link" href="@Url.Action("Index", new { page = pi.CurrentPage - 1 })" tabindex="-1" aria-disabled="true">Previous</a>
+                </li>
+
+                @foreach (var i in pageNums)
+                {
+                    if (i == -1)
+                    {
+                        <li class="page-item disabled">
+                            <a class="page-link" href="#">...</a>
+                        </li>
+                    }
+                    else
+                    {
+                        <li class="page-item @(i == pi.CurrentPage ? "active" : "")">
+                            <a class="page-link" href="@Url.Action("Index", new { page = i })">@i</a>
+                        </li>
+                    }
+                }
+
+                <li class="page-item @(pi.HasNext ? "" : "disabled")">
+                    <a class="page-link" href="@Url.Action("Index", new { page = pi.CurrentPage + 1 })">Next</a>
+                </li>
+            </ul>
+        </nav>
     </div>
 </div>
+
+@section scripts {
+    <script>
+        $("[data-fav-id]").click(function (event) {
+            event.preventDefault();
+
+            if (@((!Request.IsAuthenticated).ToString().ToLower())) {
+                toastr.error("Please login first to manage your favorite movies!");
+                return;
+            }
+
+            var a = this;
+            var isSelected = $(a).data("selected") == "True";
+            var movieId = $(a).data("fav-id");
+
+            if (isSelected) {
+                $.ajax({
+                    type: "POST",
+                    url: "@Url.Action("RemoveFromFavorites", "Movies")",
+                    data: { id: movieId },
+                    success: function (data) {
+                        if (data.success) {
+                            $(a).data("selected", "False");
+                            $(a).children("i").removeClass("fas text-danger").addClass("far");
+                            toastr.success("Removed from the favorites.");
+                        }
+                    }
+                });
+            }
+            else {
+                $.ajax({
+                    type: "POST",
+                    url: "@Url.Action("AddToFavorites", "Movies")",
+                    data: { id: movieId },
+                    success: function (data) {
+                        if (data.success) {
+                            $(a).data("selected", "True");
+                            $(a).children("i").addClass("fas text-danger").removeClass("far");
+                            toastr.success("Added to the favorites.");
+                        }
+                    }
+                });
+            }
+
+        });
+
+        $('[data-toggle="tooltip"]').tooltip();
+    </script>
+}
+
+@helper FavTitle()
+{
+    if (!User.Identity.IsAuthenticated)
+    {
+        @("Please login to add this movie to your favorites!")
+    }
+}
